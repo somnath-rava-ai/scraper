@@ -1,22 +1,21 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from typing import List
-from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig
-import asyncio
 import time
 import uuid
-# Define the input payload model
-from crawl4ai.async_dispatcher import MemoryAdaptiveDispatcher
-from crawl4ai import CrawlerMonitor, DisplayMode, RateLimiter
+import re
+import asyncio
+from typing import List
+from pydantic import BaseModel
 from contextlib import asynccontextmanager
 from bs4 import BeautifulSoup
+from fastapi import FastAPI, HTTPException
+from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig
+from crawl4ai.async_dispatcher import MemoryAdaptiveDispatcher
+from crawl4ai import CrawlerMonitor, DisplayMode, RateLimiter
+
+
 crawler = None
 monitor = None
-pattern = r"!?\[.*?\]\(.*?\)"
-import re
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup logic here (runs once at app startup)
     global crawler
     global monitor
     browser_conf = BrowserConfig(
@@ -28,7 +27,6 @@ async def lifespan(app: FastAPI):
     )
     
     yield  # This allows the app to run
-    # await crawler.close()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -37,8 +35,6 @@ app = FastAPI(lifespan=lifespan)
 @app.post("/crawl")
 async def crawl_endpoint(payload: dict):
     urls = payload.get("urls")
-    results = []
-    # coros =[]
     try:
         results = await run_crawler(urls)
         # print(results[0])
@@ -50,19 +46,16 @@ async def crawl_endpoint(payload: dict):
 async def run_crawler(urls):
     global monitor
     global crawler
+    pattern = r"!?\[.*?\]\(.*?\)"
+    
     dispatcher = MemoryAdaptiveDispatcher(
-        memory_threshold_percent=80.0,  # Pause if memory exceeds this
-        check_interval=1.0,             # How often to check memory
-        max_session_permit=20,          # Maximum concurrent tasks
         monitor= monitor
     )
-    config1 = CrawlerRunConfig(
-        wait_for= 20000,
-        scan_full_page=True,
-        session_id=str(uuid.uuid4()),
-        magic=True,
-        verbose=False
-        )
+    # config1 = CrawlerRunConfig(
+    #     # page_timeout= 20000,
+    #     session_id=str(uuid.uuid4()),
+    #     verbose=False
+    #     )
     start  = time.time()
     # async with AsyncWebCrawler(config = browser_conf)  as crawler:
         # pattern = r"!?\[.*?\]\(.*?\)"
@@ -81,11 +74,10 @@ async def run_crawler(urls):
         
         # for coro in coros:
         #     scrape = await coro
-        # 
     results = await crawler.arun_many(
     
                 urls=urls,
-                dispatcher=dispatcher
+                dispatcher=dispatcher,
             )
     # results.append(scrape)
     # print(type(results))
